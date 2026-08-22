@@ -7,3 +7,20 @@ services:
     startCommand: npm start
     healthCheckPath: /
     autoDeploy: true
+
+  - type: web
+    name: smgsl-board-hub
+    runtime: node
+    plan: free
+    rootDir: smgsl-app
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /login
+    autoDeploy: true
+    envVars:
+      - key: BOARD_PASSWORD
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: PUBLIC_MODE
+        value: "false"
