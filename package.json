@@ -1,0 +1,8 @@
+{
+  "name": "vrf-field-service-guide",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mobile LG Multi V and Daikin VRV heat recovery field service guide",
+  "scripts": {"start": "node server.js"},
+  "engines": {"node": ">=18"}
+}

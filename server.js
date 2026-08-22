@@ -1,0 +1,4 @@
+const http=require('http'),fs=require('fs'),path=require('path'),{URL}=require('url');
+const PORT=process.env.PORT||8788, PUB=path.join(__dirname,'public');
+const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'application/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.webmanifest':'application/manifest+json'};
+http.createServer((req,res)=>{const u=new URL(req.url,'http://x'); let f=u.pathname==='/'?'index.html':u.pathname.replace(/^\//,''); f=path.normalize(path.join(PUB,f)); if(!f.startsWith(PUB)||!fs.existsSync(f)){res.writeHead(404);return res.end('Not found')} const b=fs.readFileSync(f);res.writeHead(200,{'Content-Type':mime[path.extname(f)]||'application/octet-stream'});res.end(b)}).listen(PORT,()=>console.log('VRF Service Guide http://localhost:'+PORT));
