@@ -35,64 +35,70 @@ function parseICS(text){
 function fieldNumbers(e){
   const text=`${e.summary||''} ${e.location||''}`.replace(/\\n/g,' ');
   const nums=[];
-  const patterns=[
-    /(?:field|fld)\s*#?\s*(\d{1,2})/ig,
-    /(?:^|[\s,;\-])#(\d{1,2})(?=$|[\s,;\-])/g
-  ];
+  const patterns=[/(?:field|fld)\s*#?\s*(\d{1,2})/ig,/(?:^|[\s,;\-])#(\d{1,2})(?=$|[\s,;\-])/g];
   for(const re of patterns){let m;while((m=re.exec(text)))nums.push(Number(m[1]));}
-  return [...new Set(nums.filter(n=>n>=1&&n<=20))].sort((a,b)=>a-b);
+  return [...new Set(nums.filter(n=>n>=1&&n<=8))].sort((a,b)=>a-b);
 }
-function primaryField(e){const n=fieldNumbers(e)[0];return n?`Field ${n}`:'Unspecified Field';}
-function isSI(e){return /(^|\W)SI(\W|$)|sports\s*inc/i.test(`${e.summary||''} ${e.location||''}`);}
+function isSI(e){return /(^|\W)SI(\W|$)|sports\s*inc|sudden\s*impact/i.test(`${e.summary||''} ${e.location||''}`);}
 function sameDay(a,b){return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();}
+function addMinutes(d,m){return new Date(d.getTime()+m*60000);}
+function overlaps(a1,a2,b1,b2){return a1<b2&&a2>b1;}
+function normalizedEnd(e){const minEnd=isSI(e)?addMinutes(e.start,180):e.end;return e.end>minEnd?e.end:minEnd;}
+
+function candidateStarts(day){
+  const dow=day.getDay();
+  let first,last;
+  if(dow>=1&&dow<=5){first=[17,0];last=[19,30];}
+  else if(dow===0){first=[9,0];last=[19,30];}
+  else return [];
+  const start=new Date(day);start.setHours(first[0],first[1],0,0);
+  const endStart=new Date(day);endStart.setHours(last[0],last[1],0,0);
+  const out=[];
+  // Search-friendly half-hour start choices. Each normal practice is 90 minutes.
+  for(let t=start;t<=endStart;t=addMinutes(t,30))out.push(new Date(t));
+  return out;
+}
 
 function availability(events,days=21){
   const now=new Date();now.setHours(0,0,0,0);
-  // SMGSL fields are tracked as numbered fields. Keep 1-6 present even on days with no events,
-  // and include any additional numbered fields found in the live calendar.
-  const fieldNums=new Set([1,2,3,4,5,6]);
-  events.forEach(e=>fieldNumbers(e).forEach(n=>fieldNums.add(n)));
-  const fields=[...fieldNums].sort((a,b)=>a-b).map(n=>`Field ${n}`);
+  const fields=Array.from({length:8},(_,i)=>`Field ${i+1}`);
   const slots=[];
   const si=[];
 
   for(const e of events){
     if(!isSI(e))continue;
     const nums=fieldNumbers(e);
+    const end=normalizedEnd(e);
     if(nums.length){
-      nums.forEach(n=>si.push({field:`Field ${n}`,fieldNumber:n,start:e.start,end:e.end,summary:e.summary,location:e.location}));
+      nums.forEach(n=>si.push({field:`Field ${n}`,fieldNumber:n,start:e.start,end,summary:e.summary,location:e.location,durationMinutes:180}));
     }else{
-      si.push({field:'Field not identified',fieldNumber:null,start:e.start,end:e.end,summary:e.summary,location:e.location});
+      si.push({field:'Field not identified',fieldNumber:null,start:e.start,end,summary:e.summary,location:e.location,durationMinutes:180});
     }
   }
 
   for(let d=0;d<days;d++){
     const day=new Date(now);day.setDate(now.getDate()+d);
-    const dow=day.getDay();
-    let sh,eh;
-    if(dow>=1&&dow<=5){sh=17;eh=21;}
-    else if(dow===0){sh=9;eh=21;}
-    else continue;
+    const starts=candidateStarts(day);
+    if(!starts.length)continue;
 
-    for(const f of fields){
-      const num=Number(f.replace(/\D/g,''));
-      const busy=events.filter(e=>fieldNumbers(e).includes(num)&&sameDay(e.start,day)).sort((a,b)=>a.start-b.start);
-      let cur=new Date(day);cur.setHours(sh,0,0,0);
-      const end=new Date(day);end.setHours(eh,0,0,0);
-
-      for(const b of busy){
-        if(b.end<=cur||b.start>=end)continue;
-        const bs=b.start<cur?cur:b.start;
-        if(bs>cur)slots.push({field:f,fieldNumber:num,start:new Date(cur),end:new Date(Math.min(bs,end))});
-        if(b.end>cur)cur=new Date(Math.max(cur,b.end));
-        if(cur>=end)break;
+    for(let num=1;num<=8;num++){
+      const busy=events.filter(e=>fieldNumbers(e).includes(num)&&sameDay(e.start,day)).map(e=>({...e,normalizedEnd:normalizedEnd(e)}));
+      for(const start of starts){
+        const end=addMinutes(start,90);
+        const conflict=busy.some(b=>overlaps(start,end,b.start,b.normalizedEnd));
+        if(!conflict)slots.push({field:`Field ${num}`,fieldNumber:num,start,end,durationMinutes:90});
       }
-      if(cur<end)slots.push({field:f,fieldNumber:num,start:cur,end});
     }
   }
 
   si.sort((a,b)=>a.start-b.start||((a.fieldNumber||99)-(b.fieldNumber||99)));
-  return {fields,slots:slots.filter(s=>(s.end-s.start)>=30*60000),si};
+  slots.sort((a,b)=>a.start-b.start||a.fieldNumber-b.fieldNumber);
+  return {
+    fields,
+    slots,
+    si,
+    rules:{normalPracticeMinutes:90,siPracticeMinutes:180,weekdayFirstStart:'17:00',weekdayLastStart:'19:30',sundayFirstStart:'09:00',sundayLastStart:'19:30',fieldCount:8}
+  };
 }
 
 async function calendarData(){
