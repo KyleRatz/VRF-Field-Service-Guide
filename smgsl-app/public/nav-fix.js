@@ -1,4 +1,4 @@
-// Keep Board Documents and USA Softball visible after division-rules.js rebuilds the quick nav.
+// Keep Board Documents and sanctioned rule sources visible after division-rules.js rebuilds the quick nav.
 (function(){
   function addNavButton(view,label,beforeView){
     const q=document.querySelector('.quick');
@@ -13,13 +13,12 @@
   }
   function repair(){
     addNavButton('documents','Board Documents','fields');
-    addNavButton('usatx','USA Softball TX','bylaws');
+    addNavButton('usatx','USA Softball TX/NM','bylaws');
     const d=document.querySelector('[data-view="documents"]');
     if(d)d.onclick=()=>render('documents');
     const u=document.querySelector('[data-view="usatx"]');
-    if(u)u.onclick=()=>render('usatx');
+    if(u){u.textContent='USA Softball TX/NM';u.onclick=()=>render('usatx');}
   }
   repair();
-  // A later script may alter the nav once more; repair again after the page finishes loading.
   window.addEventListener('load',repair);
 })();
