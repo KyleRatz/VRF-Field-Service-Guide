@@ -42,7 +42,7 @@ function siRowOut(r){return {id:String(r.id),team:r.team,date:String(r.event_dat
 function parkingRowOut(r){return {id:String(r.id),observedAt:r.observed_at,location:r.location||'',violationType:r.violation_type||'',licensePlate:r.license_plate||'',plateState:r.plate_state||'',vehicleMake:r.vehicle_make||'',vehicleModel:r.vehicle_model||'',vehicleColor:r.vehicle_color||'',notes:r.notes||'',documentedBy:r.documented_by||'',disposition:r.disposition||'Documented',created:r.created_at,updated:r.updated_at,hasPhoto:!!r.has_photo,photoUrl:r.has_photo?`/api/parking-violations/${r.id}/photo`:''};}
 
 const originalCreateServer=http.createServer;
-http.createServer=function(listener){return originalCreateServer.call(http,async function(req,res){let u;try{u=new URL(req.url,'http://localhost');}catch{return listener(req,res);}const isSI=u.pathname.startsWith('/api/si-adjustments'),isParking=u.pathname.startsWith('/api/parking-violations');if(!isSI&&!isParking)return listener(req,res);if(!authed(req)){res.writeHead(302,{'Location':'/login'});return res.end('');}
+http.createServer=function(listener){return originalCreateServer.call(http,async function(req,res){let u;try{u=new URL(req.url,'http://localhost');}catch{return listener(req,res);}const isSI=u.pathname.startsWith('/api/si-adjustments'),isParking=u.pathname.startsWith('/api/parking-violations');if(!isSI&&!isParking){if(u.pathname==='/'||/\.(?:html|js|css|webmanifest)$/i.test(u.pathname)){res.setHeader('Cache-Control','no-store, no-cache, must-revalidate, max-age=0');res.setHeader('Pragma','no-cache');res.setHeader('Expires','0');}return listener(req,res);}if(!authed(req)){res.writeHead(302,{'Location':'/login'});return res.end('');}
  try{
   await ensureTables();
   if(isSI){
