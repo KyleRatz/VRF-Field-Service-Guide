@@ -1,3 +1,8 @@
+databases:
+  - name: smgsl-board-hub-db
+    plan: free
+    region: oregon
+
 services:
   - type: web
     name: vrf-field-service-guide
@@ -24,3 +29,7 @@ services:
         generateValue: true
       - key: PUBLIC_MODE
         value: "false"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: smgsl-board-hub-db
+          property: connectionString
