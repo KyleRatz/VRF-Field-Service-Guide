@@ -1,0 +1,17 @@
+{
+  "name": "SMGSL Board",
+  "short_name": "SMGSL Board",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b2842",
+  "theme_color": "#0b2842",
+  "icons": [
+    {
+      "src": "/smgsl-icon-180.png?v=7",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
