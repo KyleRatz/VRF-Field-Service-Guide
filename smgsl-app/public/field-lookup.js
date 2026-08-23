@@ -6,14 +6,18 @@
   function displayTime(v){return new Date(v).toLocaleTimeString('en-US',{timeZone:TZ,hour:'numeric',minute:'2-digit'});}
   function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
-  if(window.views){
-    views.fieldlookup={title:'Field Lookup',html:`<p class="muted">Find who was scheduled on a field at a specific date and time. Calendar times display in Central Time.</p><div class="incident-grid"><label>Date<input id="flDate" type="date"></label><label>Time<input id="flTime" type="time" step="900"></label><label>Field<select id="flField">${Array.from({length:8},(_,i)=>`<option value="${i+1}">Field ${i+1}</option>`).join('')}</select></label></div><button class="btn primary" id="runFieldLookup">Look Up Field</button><div id="fieldLookupResult" style="margin-top:16px"><div class="empty">Choose a date, time and field.</div></div>`};
+  // app.js declares `views` as a top-level const, so it is a global lexical
+  // binding rather than window.views. Use it directly.
+  if(typeof views!=='undefined'){
+    views.fieldlookup={title:'Field Lookup',html:`<p class="muted">Find who was scheduled on a field at a specific date and time. Calendar times display in Central Time.</p><div class="incident-grid"><label>Date<input id="flDate" type="date"></label><label>Time<input id="flTime" type="time" step="900"></label><label>Field<select id="flField">${Array.from({length:8},(_,i)=>`<option value="${i+1}">Field ${i+1}</option>`).join('')}</select></label></div><button class="btn primary" id="runFieldLookup" type="button">Look Up Field</button><div id="fieldLookupResult" style="margin-top:16px"><div class="empty">Choose a date, time and field.</div></div>`};
   }
 
   const quick=document.querySelector('.quick');
   if(quick){
     quick.innerHTML=`<button data-view="fieldlookup">Field Lookup</button><button data-view="rules">Fast Rule Lookup</button><button data-view="fields">Fields & Availability</button><button data-view="contacts">Contacts</button><details class="more-tools"><summary>More Board Tools</summary><div class="quick more-grid"><button data-view="blast">Blast Ball</button><button data-view="usatx">USA Softball TX</button><button data-view="bylaws">Bylaws</button><button data-view="documents">Board Documents</button><button data-view="si">Field Usage</button><button data-view="incidents">Incident Reports</button></div></details>`;
-    quick.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>window.render&&render(b.dataset.view)));
+    quick.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>{
+      if(typeof render==='function')render(b.dataset.view);
+    }));
   }
 
   const style=document.createElement('style');
@@ -22,17 +26,32 @@
 
   async function runLookup(){
     const out=document.querySelector('#fieldLookupResult'); if(!out)return;
-    const date=document.querySelector('#flDate')?.value, time=document.querySelector('#flTime')?.value, field=Number(document.querySelector('#flField')?.value);
+    const date=document.querySelector('#flDate')?.value;
+    const time=document.querySelector('#flTime')?.value;
+    const field=Number(document.querySelector('#flField')?.value);
     if(!date||!time||!field){out.innerHTML='<div class="warn">Select a date, time and field.</div>';return;}
     out.innerHTML='<div class="empty">Checking calendar…</div>';
     try{
       const r=await fetch(`/api/field-lookup?date=${encodeURIComponent(date)}&time=${encodeURIComponent(time)}&field=${field}`,{cache:'no-store',credentials:'same-origin'});
-      const d=await r.json(); if(!r.ok)throw new Error(d.error||'Lookup failed');
+      const contentType=r.headers.get('content-type')||'';
+      if(!contentType.includes('application/json'))throw new Error('The field lookup service did not return calendar data.');
+      const d=await r.json();
+      if(!r.ok)throw new Error(d.error||'Lookup failed');
       if(!d.matches?.length){out.innerHTML=`<div class="lookup-result"><h3>Field ${field}</h3><div class="empty">No scheduled team found at ${esc(d.displayTime||time)} on ${esc(date)}.</div></div>`;return;}
       out.innerHTML=d.matches.map(x=>`<div class="lookup-result"><span class="lookup-tag">${esc(x.owner||'Calendar')}</span><h3>Field ${field} — ${esc(x.summary||'Scheduled use')}</h3><div>${displayTime(x.start)} – ${displayTime(x.end)}</div>${x.location?`<div class="small">${esc(x.location)}</div>`:''}${x.projected?'<div class="small">Recurring schedule reconstruction</div>':'<div class="small">Calendar record</div>'}</div>`).join('');
     }catch(e){out.innerHTML=`<div class="warn">Could not look up the field: ${esc(e.message)}</div>`;}
   }
 
-  const oldBind=window.bind;
-  window.bind=function(){if(typeof oldBind==='function')oldBind();if(window.current==='fieldlookup'||document.querySelector('#runFieldLookup')){const now=new Date();const date=document.querySelector('#flDate'),time=document.querySelector('#flTime');if(date&&!date.value)date.value=localYMD(now);if(time&&!time.value)time.value=localHM(now);document.querySelector('#runFieldLookup')?.addEventListener('click',runLookup);}};
+  const oldBind=(typeof bind==='function')?bind:null;
+  bind=function(){
+    if(oldBind)oldBind();
+    const button=document.querySelector('#runFieldLookup');
+    if(!button)return;
+    const now=new Date();
+    const date=document.querySelector('#flDate');
+    const time=document.querySelector('#flTime');
+    if(date&&!date.value)date.value=localYMD(now);
+    if(time&&!time.value)time.value=localHM(now);
+    button.addEventListener('click',runLookup,{once:false});
+  };
 })();
