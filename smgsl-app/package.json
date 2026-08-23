@@ -2,6 +2,10 @@
   "name": "smgsl-board-hub",
   "version": "1.0.0",
   "private": true,
-  "scripts": {"start": "node server.js"},
-  "engines": {"node": ">=18"}
+  "scripts": {
+    "start": "node server-entry.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
 }
