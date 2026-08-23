@@ -1,17 +1,17 @@
 {
   "name": "SMGSL Board",
   "short_name": "SMGSL Board",
-  "start_url": "/",
+  "start_url": "/?icon=v10",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0b2842",
   "theme_color": "#0b2842",
   "icons": [
     {
-      "src": "/smgsl-touch-icon.png?v=8",
+      "src": "/smgsl-home-icon-v10.jpg",
       "sizes": "180x180",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/jpeg",
+      "purpose": "any"
     }
   ]
 }
