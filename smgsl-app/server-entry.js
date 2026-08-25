@@ -8,6 +8,7 @@ const BOARD_PASSWORD=process.env.BOARD_PASSWORD||'';
 const SECRET=process.env.SESSION_SECRET||crypto.createHash('sha256').update(BOARD_PASSWORD||'smgsl-dev').digest('hex');
 const USAGE_START='2026-01-01';
 const WINDOW_DAYS=21;
+let EVENTS_CACHE=null;
 
 function cookies(req){return Object.fromEntries((req.headers.cookie||'').split(';').map(s=>s.trim().split('=')).filter(x=>x.length===2));}
 function authed(req){if(PUBLIC_MODE)return true;const t=cookies(req).smgsl_session;if(!t)return false;const [raw,sig]=t.split('.');if(!raw||!sig||Number(raw)<Date.now())return false;const want=crypto.createHmac('sha256',SECRET).update(raw).digest('hex');try{return crypto.timingSafeEqual(Buffer.from(sig),Buffer.from(want));}catch{return false;}}
@@ -33,7 +34,10 @@ function expandSchedule(){
  }
  return out.sort((a,b)=>a.start-b.start||a.fieldNumber-b.fieldNumber||a.summary.localeCompare(b.summary));
 }
-const EVENTS=expandSchedule();
+function getEvents(){
+ if(!EVENTS_CACHE)EVENTS_CACHE=expandSchedule();
+ return EVENTS_CACHE;
+}
 
 function openWindow(day){const p=parts(day),dow=new Date(Date.UTC(p.y,p.m-1,p.d)).getUTCDay();if(dow>=2&&dow<=5)return [centralDate(p.y,p.m,p.d,18),centralDate(p.y,p.m,p.d,21)];if(dow===0)return [centralDate(p.y,p.m,p.d,9),centralDate(p.y,p.m,p.d,21)];return null;}
 function candidateStarts(day){const w=openWindow(day);if(!w)return [];const out=[];for(let t=new Date(w[0]);addMinutes(t,90)<=w[1];t=addMinutes(t,30))out.push(new Date(t));return out;}
@@ -43,6 +47,7 @@ function summarizeUsage(events){let si=0,sm=0,other=0;for(const e of events){con
 function eventOut(e){return {field:`Field ${e.fieldNumber}`,fieldNumber:e.fieldNumber,start:e.start,end:e.end,summary:e.summary,location:e.location,owner:e.owner,source:e.source,projected:false,durationMinutes:(e.end-e.start)/60000};}
 
 function fieldData(){
+ const EVENTS=getEvents();
  const instantNow=new Date(),np=parts(instantNow),today=centralDate(np.y,np.m,np.d),horizon=addDays(today,WINDOW_DAYS),usageStart=centralDate(2026,1,1),yearEnd=centralDate(2027,1,1);
  const yearEvents=EVENTS.filter(e=>e.end>usageStart&&e.start<yearEnd);
  const future=EVENTS.filter(e=>e.end>today&&e.start<horizon);
@@ -62,6 +67,7 @@ function fieldData(){
 }
 
 function lookup(date,time,field){
+ const EVENTS=getEvents();
  const dm=parseYMD(date),tm=time?parseHM(time):null,fieldNum=field?Number(field):0;if(!dm||(time&&!tm)||(fieldNum&&(fieldNum<1||fieldNum>8)))throw new Error('Choose a valid date. Time and field are optional.');
  const dayStart=centralDate(dm.y,dm.m,dm.d),dayEnd=addDays(dayStart,1),target=tm?centralDate(dm.y,dm.m,dm.d,tm.h,tm.min):null;
  let matches=EVENTS.filter(e=>e.start<dayEnd&&e.end>dayStart&&(!fieldNum||e.fieldNumber===fieldNum));if(target)matches=matches.filter(e=>e.start<=target&&e.end>target);matches.sort((a,b)=>a.fieldNumber-b.fieldNumber||a.start-b.start||a.summary.localeCompare(b.summary));
