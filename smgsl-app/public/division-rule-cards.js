@@ -1,13 +1,27 @@
-/* Division rule cards: one-tap 6U/8U/10U/12U/MX rule hubs */
+/* Division rule cards: one-tap 6U/8U/10U/12U/MX rule hubs + official rulebook quick search */
 (function(){
   const DIVS=[['6u','6U'],['8u','8U'],['10u','10U'],['12u','12U'],['mx','MX']];
   const SMGSL='SMGSL Rules';
   const USATX=typeof USATX_SOURCE!=='undefined'?USATX_SOURCE:'USA Softball of Texas/New Mexico';
   function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function ruleCard(r,source){return `<article class="rule-card"><div class="rule-topic">${esc(r.topic||'Rule')}</div><div class="rule-question">${esc(r.q||'')}</div><div class="rule-answer">${esc(r.text||'')}</div><div class="small">Source: ${esc(source)}</div></article>`;}
+  function norm(v){return String(v||'').toLowerCase().replace(/mixed division|mixed/g,'mx').replace(/[^a-z0-9]+/g,' ').trim();}
+  function ruleCard(r,source,label=''){return `<article class="rule-card"><div class="rule-topic">${label?esc(label)+' • ':''}${esc(r.topic||'Rule')}</div><div class="rule-question">${esc(r.q||'')}</div><div class="rule-answer">${esc(r.text||'')}</div><div class="small">Source: ${esc(source)}</div></article>`;}
+  function smgslRules(div){return (typeof divisionRules!=='undefined'?(divisionRules[div]||[]):[]).filter(r=>r.source!==USATX);}
+  function searchSMGSL(q,div){const needle=norm(q);let rows=[];const divs=div==='all'?DIVS.map(x=>x[0]):[div];divs.forEach(d=>smgslRules(d).forEach(r=>rows.push({div:d,r})));if(!needle)return rows;const toks=needle.split(' ').filter(Boolean);return rows.map(x=>{const hay=norm(`${x.r.topic||''} ${x.r.q||''} ${x.r.text||''} ${x.r.keys||''}`);let score=hay.includes(needle)?50:0;toks.forEach(t=>{if(hay.split(' ').includes(t))score+=10;else if(hay.includes(t))score+=3;});return {...x,score};}).filter(x=>x.score>0).sort((a,b)=>b.score-a.score);}
+  function officialRulebookSearch(){
+    if(typeof views==='undefined'||!views.rules)return;
+    const original=views.rules.html||'';
+    views.rules.html=`<div class="notice"><b>Official SMGSL Rulebook — Quick Lookup.</b> Pick a division to instantly see the rules that apply, or type a call/keyword such as look back, stealing, pitching, obstruction, runs, game time, or pickup player.</div>
+      <div class="official-search-box rulebook-quick-search">
+        <div class="division-picker">${DIVS.map(([d,l])=>`<button type="button" data-official-div="${d}">${l}</button>`).join('')}<button type="button" data-official-div="all">ALL</button></div>
+        <input id="officialBookQuery" class="rule-search" inputmode="search" enterkeyhint="search" placeholder="Search official SMGSL rules…" autocomplete="off" autocorrect="off" spellcheck="false">
+        <div id="officialBookResults" class="rule-search-results"><div class="empty">Tap 6U, 8U, 10U, 12U, or MX to see that division's rules.</div></div>
+      </div>${original}`;
+  }
+  officialRulebookSearch();
   function buildDivisionView(div,label){
     if(typeof views==='undefined'||typeof divisionRules==='undefined')return;
-    const smgsl=(divisionRules[div]||[]).filter(r=>r.source!==USATX);
+    const smgsl=smgslRules(div);
     const usaSpecific=(typeof usaTxByDivision!=='undefined'?(usaTxByDivision[div]||[]):[]);
     const usaBase=(typeof usaTxBase!=='undefined'&&Array.isArray(usaTxBase.rules)?usaTxBase.rules:[]);
     views[div]={title:`${label} Division Rules`,html:`
@@ -23,15 +37,16 @@
 
   const quick=document.querySelector('.hero .quick');
   if(quick&&!document.querySelector('.division-home-wrap')){
-    const wrap=document.createElement('div');
-    wrap.className='division-home-wrap';
+    const wrap=document.createElement('div');wrap.className='division-home-wrap';
     wrap.innerHTML=`<div class="division-home-title">Rules by Division</div><div class="division-home-grid">${DIVS.map(([div,label])=>`<button type="button" data-ruledivision="${div}"><strong>${label}</strong><span>SMGSL + USA TX/NM</span></button>`).join('')}</div>`;
-    const more=quick.querySelector('.more-tools');
-    if(more)quick.insertBefore(wrap,more);else quick.appendChild(wrap);
+    const more=quick.querySelector('.more-tools');if(more)quick.insertBefore(wrap,more);else quick.appendChild(wrap);
     wrap.querySelectorAll('[data-ruledivision]').forEach(b=>b.addEventListener('click',()=>{if(typeof render==='function')render(b.dataset.ruledivision);}));
   }
 
+  function bindOfficialBook(){if(typeof current==='undefined'||current!=='rules')return;const q=document.querySelector('#officialBookQuery'),out=document.querySelector('#officialBookResults');if(!q||!out)return;let selected='all';const labels=Object.fromEntries(DIVS);const run=()=>{const rows=searchSMGSL(q.value,selected);if(!q.value.trim()&&selected==='all'){out.innerHTML='<div class="empty">Tap a division or type a rule/call above.</div>';return;}out.innerHTML=rows.length?rows.slice(0,30).map(x=>ruleCard(x.r,SMGSL,labels[x.div]||x.div.toUpperCase())).join(''):`<div class="empty">No SMGSL rule match. Try fewer words or another division.</div>`;};document.querySelectorAll('[data-official-div]').forEach(b=>b.addEventListener('click',()=>{selected=b.dataset.officialDiv;document.querySelectorAll('[data-official-div]').forEach(x=>x.classList.toggle('active',x===b));q.value='';run();}));q.addEventListener('input',run,{passive:true});}
+  if(typeof bind==='function'){const oldBind=bind;bind=function(){oldBind();bindOfficialBook();};}
+
   const style=document.createElement('style');
-  style.textContent=`.division-home-wrap{grid-column:1/-1;margin-top:2px}.division-home-title{font-weight:900;font-size:14px;letter-spacing:.02em;margin:5px 2px 8px;color:#d8e9f8}.division-home-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}.division-home-grid button{border:1px solid #315a7e;border-radius:14px;background:#102b46;color:#fff;padding:12px 8px;min-height:62px}.division-home-grid strong{display:block;font-size:18px}.division-home-grid span{display:block;font-size:10px;color:#b7cbe0;margin-top:3px}.rule-source-group{border:1px solid #315a7e;border-radius:14px;margin:14px 0;overflow:hidden}.rule-source-group>summary{cursor:pointer;font-weight:900;padding:14px 16px;background:#0d2740;display:flex;justify-content:space-between;gap:10px}.rule-source-group>summary span{font-size:12px;color:#b7cbe0}.rule-source-list{padding:10px}@media(max-width:600px){.division-home-grid{grid-template-columns:repeat(3,1fr)}.division-home-grid button:nth-last-child(-n+2){min-height:58px}}`;
+  style.textContent=`.division-home-wrap{grid-column:1/-1;margin-top:2px}.division-home-title{font-weight:900;font-size:14px;letter-spacing:.02em;margin:5px 2px 8px;color:#d8e9f8}.division-home-grid,.division-picker{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}.division-home-grid button,.division-picker button{border:1px solid #315a7e;border-radius:14px;background:#102b46;color:#fff;padding:12px 8px;min-height:54px;font-weight:900}.division-picker{grid-template-columns:repeat(6,minmax(0,1fr));margin-bottom:10px}.division-picker button.active{outline:2px solid #fff;background:#194b73}.division-home-grid strong{display:block;font-size:18px}.division-home-grid span{display:block;font-size:10px;color:#b7cbe0;margin-top:3px}.rulebook-quick-search{margin:14px 0 18px}.rule-source-group{border:1px solid #315a7e;border-radius:14px;margin:14px 0;overflow:hidden}.rule-source-group>summary{cursor:pointer;font-weight:900;padding:14px 16px;background:#0d2740;display:flex;justify-content:space-between;gap:10px}.rule-source-group>summary span{font-size:12px;color:#b7cbe0}.rule-source-list{padding:10px}@media(max-width:600px){.division-home-grid{grid-template-columns:repeat(3,1fr)}.division-picker{grid-template-columns:repeat(3,1fr)}.division-home-grid button:nth-last-child(-n+2){min-height:58px}}`;
   document.head.appendChild(style);
 })();
