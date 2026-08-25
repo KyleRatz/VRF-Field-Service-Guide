@@ -16,6 +16,8 @@ function offsetMs(date){const p=parts(date);return Date.UTC(p.y,p.m-1,p.d,p.h,p.
 function centralDate(y,m,d,h=0,min=0){const wall=Date.UTC(y,m-1,d,h,min);let g=new Date(wall),o=offsetMs(g),out=new Date(wall-o),o2=offsetMs(out);if(o2!==o)out=new Date(wall-o2);return out;}
 function parseYMD(v){const m=String(v||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?{y:+m[1],m:+m[2],d:+m[3]}:null;}
 function parseHM(v){const m=String(v||'').match(/^(\d{2}):(\d{2})$/);return m?{h:+m[1],min:+m[2]}:null;}
+function compactDate(n){n=Number(n);return {y:2000+Math.floor(n/10000),m:Math.floor(n/100)%100,d:n%100};}
+function compactDateKey(d){return (d.y-2000)*10000+d.m*100+d.d;}
 function addDays(d,n){const p=parts(d),noon=centralDate(p.y,p.m,p.d,12),tmp=new Date(noon.getTime()+n*86400000),q=parts(tmp);return centralDate(q.y,q.m,q.d,12);}
 function addMinutes(d,n){return new Date(d.getTime()+n*60000);}
 function ymd(d){const p=parts(d);return `${p.y}-${String(p.m).padStart(2,'0')}-${String(p.d).padStart(2,'0')}`;}
@@ -24,9 +26,10 @@ function sameDay(a,b){return ymd(a)===ymd(b);}
 
 function expandSchedule(){
  const out=[];
- for(const g of schedule.groups||[]){
-  const st=parseHM(g.start),et=parseHM(g.end);if(!st||!et)continue;
-  for(const date of g.dates||[]){const p=parseYMD(date);if(!p)continue;const start=centralDate(p.y,p.m,p.d,st.h,st.min);let end=centralDate(p.y,p.m,p.d,et.h,et.min);if(end<=start)end=addDays(end,1);out.push({fieldNumber:Number(g.field),start,end,summary:g.team||'',location:g.location||'SMGSL',owner:g.owner==='SI'?'SI':'SMGSL',season:g.season||'',source:`${g.season||'2026'} schedule spreadsheet`});}
+ for(const r of schedule.rules||[]){
+  const [seasonBit,teamIdx,field,startMin,endMin,ownerBit,fromKey,toKey,excluded=[]]=r,from=compactDate(fromKey),to=compactDate(toKey),ex=new Set(excluded);
+  let day=centralDate(from.y,from.m,from.d),last=centralDate(to.y,to.m,to.d,23,59);
+  while(day<=last){const p=parts(day),key=compactDateKey(p);if(!ex.has(key)){const start=centralDate(p.y,p.m,p.d,Math.floor(startMin/60),startMin%60);let end=centralDate(p.y,p.m,p.d,Math.floor(endMin/60),endMin%60);if(end<=start)end=addDays(end,1);out.push({fieldNumber:Number(field),start,end,summary:schedule.teams[teamIdx]||'',location:'SMGSL',owner:ownerBit?'SI':'SMGSL',season:seasonBit?'Fall':'Spring',source:`${seasonBit?'Fall':'Spring'} 2026 schedule spreadsheet`});}day=addDays(day,7);}
  }
  return out.sort((a,b)=>a.start-b.start||a.fieldNumber-b.fieldNumber||a.summary.localeCompare(b.summary));
 }
