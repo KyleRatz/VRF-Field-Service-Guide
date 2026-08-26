@@ -1,0 +1,8 @@
+{
+  "name": "chiller-field-service-guide",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone field diagnostic guide for air-cooled, water-cooled and centrifugal chillers",
+  "scripts": {"start": "node server.js"},
+  "engines": {"node": ">=18"}
+}
