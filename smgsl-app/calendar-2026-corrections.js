@@ -29,6 +29,19 @@ const USED_TO_DATE_SNAPSHOTS={
   '2026-08-25':{siFieldHours:1827.50,smgslFieldHours:1490.25,otherFieldHours:168.00,currentTotalFieldHours:3485.75}
 };
 
+// Website-listed special dates that should never be offered as open practice
+// inventory even when the recurring team schedule has no individual rows.
+// Sep. 4 is Opening Day Parade / Labor Day Weekend on the official site.
+const FIELD_BLACKOUTS={
+  '2026-09-04':'Opening Day Parade / Labor Day Weekend'
+};
+
+function localYMD(v){
+  const d=new Date(v);if(Number.isNaN(d.getTime()))return '';
+  try{return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(d);}
+  catch{return d.toISOString().slice(0,10);}
+}
+
 function applyAnnual(data){
   if(!data||!data.usage)return;
   const scheduled=data.usage.scheduled||{};
@@ -51,6 +64,24 @@ function applyUsedToDate(data){
   data.usage.currentTotalFieldHours=used.currentTotalFieldHours;
 }
 
+function applyFieldBlackouts(data){
+  if(!data)return;
+  const slots=Array.isArray(data.slots)?data.slots:[];
+  const blockedDates=new Set(Object.keys(FIELD_BLACKOUTS));
+  const before=slots.length;
+  data.slots=slots.filter(s=>!blockedDates.has(localYMD(s.start)));
+  const removed=before-data.slots.length;
+  if(removed&&data.usage){
+    // Sep. 4 is a Friday: 3 operating hours x 8 fields = 24 field-hours.
+    // Exclude those hours from current-window capacity rather than falsely
+    // presenting them as unused/available inventory.
+    const blackoutHours=24;
+    if(Number.isFinite(Number(data.usage.totalFieldHours)))data.usage.totalFieldHours=Math.max(0,Number(data.usage.totalFieldHours)-blackoutHours);
+    if(Number.isFinite(Number(data.usage.availableFieldHours)))data.usage.availableFieldHours=Math.max(0,Number(data.usage.availableFieldHours)-blackoutHours);
+  }
+  data.blackouts=Object.entries(FIELD_BLACKOUTS).map(([date,reason])=>({date,reason,allFields:true}));
+}
+
 const originalCreateServer=http.createServer;
 http.createServer=function(listener){return originalCreateServer.call(http,function(req,res){
   let pathname='';try{pathname=new URL(req.url,'http://localhost').pathname;}catch{}
@@ -67,10 +98,12 @@ http.createServer=function(listener){return originalCreateServer.call(http,funct
         const data=JSON.parse(raw);
         applyAnnual(data);
         applyUsedToDate(data);
+        applyFieldBlackouts(data);
         data.diagnostics={
           ...(data.diagnostics||{}),
           reportingAuthority:'SMGSL reconciled 2026 master calendar / website when discrepancies arise',
           saturdayCapacityRule:'Saturdays excluded from unused capacity; website-listed tournament hours count as Other',
+          fieldBlackoutRule:'Website-listed complex events are not offered as open practice inventory',
           annualAvailableFieldHours:ANNUAL.totalFieldHours,
           annualScheduledFieldHours:ANNUAL.scheduledTotalFieldHours,
           annualOtherFieldHours:ANNUAL.otherFieldHours
