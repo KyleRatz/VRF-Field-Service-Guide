@@ -23,6 +23,7 @@ const server = http.createServer((req, res) => {
     pathname = 'index.html';
   } else {
     pathname = pathname.replace(/^\/+/, '');
+    if (pathname.endsWith('/')) pathname += 'index.html';
   }
 
   const filePath = path.join(PUBLIC_DIR, pathname);
