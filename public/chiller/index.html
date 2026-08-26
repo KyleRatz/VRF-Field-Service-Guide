@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1220" />
+  <title>Chiller Field Diagnostic Guide</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header class="topbar">
+  <div>
+    <div class="eyebrow">FIELD SERVICE</div>
+    <h1>Chiller Diagnostic Guide</h1>
+  </div>
+  <span class="badge">Beta</span>
+</header>
+<main>
+  <section class="hero card">
+    <h2>Start a diagnosis</h2>
+    <p class="muted">Use the actual machine readings. The guide explains what each result means and what to check next.</p>
+    <div class="grid two">
+      <label>Chiller type<select id="type"><option value="air">Air-cooled</option><option value="water">Water-cooled</option></select></label>
+      <label>Compressor<select id="compressor"><option>Scroll</option><option>Screw</option><option>Centrifugal</option><option>Reciprocating</option></select></label>
+      <label>Refrigerant<select id="refrigerant"><option>R-134a</option><option>R-410A</option><option>R-407C</option><option>R-513A</option><option>R-1234ze</option><option>R-1233zd</option><option>Other / Unknown</option></select></label>
+      <label>Primary complaint<select id="complaint"><option value="not_cooling">Not cooling / low capacity</option><option value="low_suction">Low suction / freeze risk</option><option value="high_head">High head / high condensing pressure</option><option value="flow">Flow fault</option><option value="oil">Oil / compressor fault</option><option value="electrical">Electrical / controls fault</option></select></label>
+    </div>
+    <button id="startBtn" class="primary">Build diagnostic path</button>
+  </section>
+
+  <section id="pathCard" class="card hidden">
+    <h2>Diagnostic path</h2>
+    <div id="path"></div>
+  </section>
+
+  <section class="card">
+    <h2>Operating data</h2>
+    <p class="muted">Temperatures are °F. Leave any unknown reading blank.</p>
+    <div class="section-title">Chilled water</div>
+    <div class="grid two">
+      <label>CHW entering<input id="chwIn" type="number" step="0.1" inputmode="decimal"></label>
+      <label>CHW leaving<input id="chwOut" type="number" step="0.1" inputmode="decimal"></label>
+      <label>Evaporating saturation<input id="evapSat" type="number" step="0.1" inputmode="decimal"></label>
+      <label>Evap refrigerant outlet / suction line<input id="suctionTemp" type="number" step="0.1" inputmode="decimal"></label>
+    </div>
+    <div id="cwFields">
+      <div class="section-title">Condenser water</div>
+      <div class="grid two">
+        <label>CW entering<input id="cwIn" type="number" step="0.1" inputmode="decimal"></label>
+        <label>CW leaving<input id="cwOut" type="number" step="0.1" inputmode="decimal"></label>
+      </div>
+    </div>
+    <div class="section-title">Condenser / compressor</div>
+    <div class="grid two">
+      <label>Condensing saturation<input id="condSat" type="number" step="0.1" inputmode="decimal"></label>
+      <label>Liquid line temp<input id="liquidTemp" type="number" step="0.1" inputmode="decimal"></label>
+      <label>Outdoor ambient<input id="ambient" type="number" step="0.1" inputmode="decimal"></label>
+      <label>Compressor load %<input id="load" type="number" min="0" max="100" step="1" inputmode="numeric"></label>
+    </div>
+    <button id="analyzeBtn" class="primary">Analyze readings</button>
+  </section>
+
+  <section id="resultsCard" class="card hidden">
+    <h2>Calculated results</h2>
+    <div id="metrics" class="metrics"></div>
+    <div id="findings"></div>
+  </section>
+
+  <section class="card">
+    <h2>Quick symptom guide</h2>
+    <div class="accordion">
+      <details><summary>Low chilled-water ΔT</summary><p>Verify actual flow first. Excessive flow, low building load, bypassing, three-way valves, fouled coils, or controls can all produce low ΔT. Do not condemn the chiller from ΔT alone.</p></details>
+      <details><summary>High evaporator approach</summary><p>Compare leaving chilled-water temperature to evaporating saturation temperature. A worsening approach can point toward poor evaporator heat transfer, low refrigerant feed, fouling, oil logging, or flow problems depending on machine design.</p></details>
+      <details><summary>High condenser approach</summary><p>On a water-cooled machine, first verify condenser-water flow and tower performance. Fouled tubes, scale, non-condensables, overcharge, or poor heat rejection can elevate condensing temperature.</p></details>
+      <details><summary>High head on air-cooled chiller</summary><p>Check condenser coil cleanliness, fan operation/direction, airflow recirculation, ambient conditions, fan staging/VFD control, charge, and non-condensables.</p></details>
+      <details><summary>Low suction / freeze protection</summary><p>Verify evaporator water flow before refrigerant adjustments. Check pump operation, strainers, valves, flow proving, load, leaving-water setpoint, evaporator fouling, refrigerant feed, and sensor accuracy.</p></details>
+    </div>
+  </section>
+
+  <section class="warning card">
+    <strong>Field safety</strong>
+    <p>Follow the manufacturer IOM/service manual and site LOTO procedures. Never bypass a safety to keep a chiller running. Confirm pressure-temperature data for the actual refrigerant before making charge decisions.</p>
+  </section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
