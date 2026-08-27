@@ -1,5 +1,5 @@
 const RULEBOOK='https://dt5602vnjxv0c.cloudfront.net/portals/3766/docs/south%20montgomery%20girls%20softball%20league%20rules%20updated%20fall%202025.pdf';
-const BYLAWS='https://smgsl.sharepoint.com/:w:/s/SMGSLBoard/IQCs9q6vFXb7TJArLGJrw110AX5-BYhR0cXm_60iZoCn81Y';
+const BYLAWS='/2025-smgsl-bylaws.html';
 const views={
 rules:{title:'League Rules',html:`<div class="notice">The official SMGSL rulebook is the controlling source. The current linked copy is marked <b>Updated Fall 2025</b>.</div><a class="doclink" href="${RULEBOOK}" target="_blank" rel="noopener">Open Full 34-Page League Rulebook</a><h3>Rulebook index</h3><div class="rules">Facility Use & Park Operations
 Registration Procedures
@@ -88,7 +88,7 @@ blast:{title:'Blast Ball Rules — Amended Fall 2026',html:`<div class="rules"><
 
 <b>Umpires</b>
 • No official umpires are used. Keep games fun, positive and enjoyable.</div>`},
-bylaws:{title:'2025 SMGSL By-Laws',html:`<div class="notice">Official 2025 bylaws, July 2025. Use the SharePoint copy for the complete controlling text.</div><a class="doclink" href="${BYLAWS}" target="_blank" rel="noopener">Open Official Bylaws in SharePoint</a><h3>Board quick reference</h3><div class="rules">• SMGSL is a Texas nonprofit in Montgomery County and follows USA Softball except where League rules supersede.
+bylaws:{title:'2025 SMGSL By-Laws',html:`<div class="notice">Official 2025 bylaws, July 2025. The complete 20-page text is available directly in this app.</div><a class="doclink" href="${BYLAWS}" target="_blank" rel="noopener">Open Complete 2025 SMGSL Bylaws</a><h3>Board quick reference</h3><div class="rules">• SMGSL is a Texas nonprofit in Montgomery County and follows USA Softball except where League rules supersede.
 • Purpose: organized/supervised competitive softball emphasizing fair competition, sportsmanship and fun; winning is secondary.
 • Board meets monthly. Regular-meeting quorum requires one-half of both Executive Committee and Board of Directors; special-meeting quorum is a majority of the Board.
 • Unless otherwise stated, actions require a majority vote of members present when a quorum exists.
