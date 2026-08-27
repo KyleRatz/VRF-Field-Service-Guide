@@ -4,17 +4,17 @@ const http=require('http');
 // Saturdays do not create general available/unused capacity. Website-listed
 // tournament use is counted as Other, including Saturday tournament hours.
 const ANNUAL={
-  siFieldHours:2790.50,
+  siFieldHours:2484.50,
   smgslFieldHours:2434.50,
   otherFieldHours:672.00,
-  unusedFieldHours:3261.00,
+  unusedFieldHours:3567.00,
   totalFieldHours:9158.00,
-  scheduledTotalFieldHours:5897.00,
+  scheduledTotalFieldHours:5591.00,
   unusedByField:[
     {field:'Field 1',fieldNumber:1,unusedFieldHours:264.25},
     {field:'Field 2',fieldNumber:2,unusedFieldHours:456.25},
-    {field:'Field 3',fieldNumber:3,unusedFieldHours:440.75},
-    {field:'Field 4',fieldNumber:4,unusedFieldHours:303.25},
+    {field:'Field 3',fieldNumber:3,unusedFieldHours:443.75},
+    {field:'Field 4',fieldNumber:4,unusedFieldHours:606.25},
     {field:'Field 5',fieldNumber:5,unusedFieldHours:682.00},
     {field:'Field 6',fieldNumber:6,unusedFieldHours:532.00},
     {field:'Field 7',fieldNumber:7,unusedFieldHours:180.25},

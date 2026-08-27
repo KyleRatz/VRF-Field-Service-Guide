@@ -21,7 +21,28 @@
     if(c)c.onclick=()=>render('contacts');
     const u=document.querySelector('[data-view="usatx"]');
     if(u){u.textContent='USA Softball TX/NM';u.onclick=()=>render('usatx');}
+    const b=document.querySelector('[data-view="bylaws"]');
+    if(b){
+      b.onclick=()=>{
+        render('bylaws');
+        history.replaceState(null,'','#bylaws');
+        requestAnimationFrame(()=>document.querySelector('#content')?.scrollIntoView({behavior:'smooth',block:'start'}));
+      };
+    }
   }
   repair();
   window.addEventListener('load',repair);
+  document.addEventListener('click',event=>{
+    const button=event.target.closest('[data-view="bylaws"]');
+    if(!button)return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    render('bylaws');
+    history.replaceState(null,'','#bylaws');
+    requestAnimationFrame(()=>document.querySelector('#content')?.scrollIntoView({behavior:'smooth',block:'start'}));
+  },true);
+  if(location.hash==='#bylaws'){
+    render('bylaws');
+    window.addEventListener('load',()=>document.querySelector('#content')?.scrollIntoView({block:'start'}),{once:true});
+  }
 })();

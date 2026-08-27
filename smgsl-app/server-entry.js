@@ -10,6 +10,10 @@ const USAGE_START='2026-01-01';
 const WINDOW_DAYS=21;
 const PARTS_FORMATTER=new Intl.DateTimeFormat('en-US',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
 const LOOKUP_TIME_FORMATTER=new Intl.DateTimeFormat('en-US',{timeZone:TZ,hour:'numeric',minute:'2-digit'});
+// These names were incorrectly parsed as SI teams in the uploaded schedules.
+// Excluding them here releases every generated practice block back to unused
+// field inventory and prevents team cards/lookup results from being created.
+const EXCLUDED_SI_TEAM_NAMES=new Set(['SI SCHELSTRATE','SI WILLIAMS']);
 let EVENTS_CACHE=null;
 let EVENT_INDEX=null;
 let SCHEDULED_CACHE=null;
@@ -34,6 +38,8 @@ function expandSchedule(){
  const out=[];
  for(const r of schedule.rules||[]){
   const [seasonBit,teamIdx,field,startMin,endMin,ownerBit,fromKey,toKey,excluded=[]]=r,from=compactDate(fromKey),to=compactDate(toKey),ex=new Set(excluded);
+  const teamName=String(schedule.teams[teamIdx]||'').trim().toUpperCase();
+  if(EXCLUDED_SI_TEAM_NAMES.has(teamName))continue;
   let day=centralDate(from.y,from.m,from.d),last=centralDate(to.y,to.m,to.d,23,59);
   while(day<=last){
    const p=parts(day),key=compactDateKey(p);
