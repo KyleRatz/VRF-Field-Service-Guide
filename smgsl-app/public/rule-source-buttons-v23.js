@@ -10,13 +10,14 @@
   // USA Softball national playing rules are generally age-independent unless a JO/local-association exception applies.
   // Texas JO currently publishes division-specific exceptions/documents in addition to the national rulebook.
   const USA_META={
-    'Obstruction':{ref:'USA Softball Rule 8, Section 5.B',pdfPage:83,label:'Obstruction by a fielder'},
-    'Look Back':{ref:'USA Softball Rule 8, Section 7.T',pdfPage:91,label:'Look Back Rule'},
-    'Dropped third strike':{ref:'USA Softball Rule 8, Sections 1.B / 2',pdfPage:76,label:'Dropped third strike'},
-    'Leaving early':{ref:'USA Softball Rule 8, Section 7.S',pdfPage:91,label:'Runner leaving base too soon'},
-    'Interference':{ref:'USA Softball Rule 8',pdfPage:76,label:'Interference'},
+    'Obstruction':{ref:'USA Softball Rule 8, Section 5.B',pdfPage:96,label:'Obstruction by a fielder'},
+    'Look Back':{ref:'USA Softball Rule 8, Section 7.T',pdfPage:104,label:'Look Back Rule'},
+    'Dropped third strike':{ref:'USA Softball Rule 8, Sections 1.B / 2',pdfPage:89,label:'Dropped third strike'},
+    'Leaving early':{ref:'USA Softball Rule 8, Section 7.S',pdfPage:104,label:'Runner leaving base too soon'},
+    'Interference':{ref:'USA Softball Rule 8',pdfPage:102,label:'Runner interference'},
     'Infield fly':{ref:'USA Softball Rule 1 — Infield Fly definition',pdfPage:23,label:'Infield Fly'},
-    'Illegal pitch':{ref:'USA Softball Rule 6A',pdfPage:57,label:'Fast Pitch pitching regulations'}
+    'Illegal pitch':{ref:'USA Softball Rule 6A',pdfPage:63,label:'Fast Pitch pitching regulations'},
+    'Hit by pitch':{ref:'USA Softball Rule 8, Section 1.F',pdfPage:91,label:'Batter hit by pitch'}
   };
   // Known Texas JO division routing. Exact Texas exception documents are selected by division when published.
   function texasDivisionNote(div){
@@ -62,4 +63,11 @@
   function bindDiv(div){const q=document.querySelector(`#v23-${div}`),out=document.querySelector(`#v23-out-${div}`);if(!q||!out)return;const run=()=>{const val=q.value.trim(),found=window.SMGSLRuleSearchV21.search(val,div);out.innerHTML=found.length?found.slice(0,60).map(r=>card(r,div)).join(''):`<div class="empty"><b>No matching ${LABELS[div]} rule found for “${esc(val)}”.</b><br>No unrelated division rules are substituted.</div>`;};q.addEventListener('input',run,{passive:true});run();}
   if(typeof bind==='function'){const prev=bind;bind=function(){prev();if(typeof current!=='undefined'&&IDS.includes(current))bindDiv(current);};}
   const style=document.createElement('style');style.textContent=`.show-official-rule{display:block;margin-top:14px;padding:15px 14px;border-radius:14px;text-align:center;font-weight:900;letter-spacing:.04em;text-decoration:none;background:#78bbff;color:#07182a;font-size:1rem}.texas-jo-secondary{display:block;margin-top:10px;text-align:center;font-weight:700}.rule-citation-fast{margin-top:10px;font-size:.93rem;line-height:1.35;color:#b9cee3}`;document.head.appendChild(style);
+})();
+
+// Load the complete rulebook index after the existing quick-answer layers.
+(function(){
+  let loaded=0;
+  const ready=()=>{if(++loaded!==3)return;const search=document.createElement('script');search.src='/rule-search-v24.js?v=24';document.body.appendChild(search);};
+  [1,2,3].forEach(part=>{const index=document.createElement('script');index.src=`/rulebook-index-v24-${part}.js?v=24`;index.onload=ready;document.body.appendChild(index);});
 })();

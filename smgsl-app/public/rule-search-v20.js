@@ -17,7 +17,7 @@
     ['illegal pitch',['illegal pitching','pitch violation']],
     ['leaving early',['left early','leave early','leaving early','lead off','leadoff','runner left base']],
     ['steal',['stealing','stolen base']],
-    ['hit by pitch',['hbp','hit batter','batter hit']],
+    ['hit by pitch',['hbp','hit batter','batter hit','batter struck by pitched ball','pitch hits batter','hit with pitch']],
     ['foul tip',['foul-tip','tip caught']],
     ['appeal',['appeal play','missed base']],
     ['bunt',['bunting','shows bunt']],

@@ -39,7 +39,7 @@
     'look back':['lookback','look-back','look back','circle rule'],
     'dropped third strike':['dropped 3rd','dropped third','uncaught third strike','uncaught 3rd strike'],
     'obstruction':['blocking plate','blocked plate','blocking base','blocked base','fielder in way','catcher blocking'],
-    'hit by pitch':['hbp','hit batter','batter hit'],
+    'hit by pitch':['hbp','hit batter','batter hit','batter struck by pitched ball','pitch hits batter','hit with pitch'],
     'pitcher innings':['pitching limit','pitcher limit','innings limit'],
     'game time':['time limit','game length','no new inning'],
     'run limit':['runs per inning','5 runs','five runs'],
