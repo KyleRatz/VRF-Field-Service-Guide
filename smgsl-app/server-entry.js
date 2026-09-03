@@ -1,6 +1,7 @@
 const http=require('http');
 const crypto=require('crypto');
 const schedule=require('./schedule-2026-data');
+const officialFall=require('./official-calendar-2026-fall-data');
 
 const TZ='America/Chicago';
 const PUBLIC_MODE=String(process.env.PUBLIC_MODE||'false').toLowerCase()==='true';
@@ -8,6 +9,8 @@ const BOARD_PASSWORD=process.env.BOARD_PASSWORD||'';
 const SECRET=process.env.SESSION_SECRET||crypto.createHash('sha256').update(BOARD_PASSWORD||'smgsl-dev').digest('hex');
 const USAGE_START='2026-01-01';
 const WINDOW_DAYS=21;
+const WEBSITE_RANGE_START='2026-09-01';
+const WEBSITE_RANGE_END_EXCLUSIVE='2027-01-01';
 const PARTS_FORMATTER=new Intl.DateTimeFormat('en-US',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
 const LOOKUP_TIME_FORMATTER=new Intl.DateTimeFormat('en-US',{timeZone:TZ,hour:'numeric',minute:'2-digit'});
 // These names were incorrectly parsed as SI teams in the uploaded schedules.
@@ -52,7 +55,11 @@ function expandSchedule(){
    day=addDays(day,7);
   }
  }
- return out.sort((a,b)=>a.start-b.start||a.fieldNumber-b.fieldNumber||a.summary.localeCompare(b.summary));
+ const websiteEvents=(officialFall.events||[]).map(r=>({fieldNumber:Number(r[2]),start:new Date(r[0]),end:new Date(r[1]),dateKey:ymd(new Date(r[0])),summary:officialFall.summaries[r[4]]||'',location:'SMGSL',owner:r[3]===1?'SI':r[3]===2?'OTHER':'SMGSL',season:'Fall',source:'SMGSL.net official calendar'}));
+ // Preserve every existing record before Sept. 1. Only the requested
+ // Sept. 1-Dec. 31 window is replaced by the official website calendar.
+ const retained=out.filter(e=>e.dateKey<WEBSITE_RANGE_START||e.dateKey>=WEBSITE_RANGE_END_EXCLUSIVE);
+ return [...retained,...websiteEvents].sort((a,b)=>a.start-b.start||a.fieldNumber-b.fieldNumber||a.summary.localeCompare(b.summary));
 }
 function buildIndex(events){
  const byDateField=new Map();
@@ -70,15 +77,33 @@ function candidateStarts(day){const w=openWindow(day);if(!w)return [];const out=
 function unionBusyMinutes(events,start,end){const ints=events.map(e=>[e.start>start?e.start:start,e.end<end?e.end:end]).filter(x=>x[1]>x[0]).sort((a,b)=>a[0]-b[0]);if(!ints.length)return 0;let total=0,s=ints[0][0],e=ints[0][1];for(let i=1;i<ints.length;i++){if(ints[i][0]<=e){if(ints[i][1]>e)e=ints[i][1];}else{total+=(e-s)/60000;s=ints[i][0];e=ints[i][1];}}return total+(e-s)/60000;}
 function capacitySummary(from,to){let total=0,busy=0;for(let day=new Date(from);day<to;day=addDays(day,1)){const w=openWindow(day);if(!w)continue;const mins=(w[1]-w[0])/60000,dayKey=ymd(day);total+=mins*8;for(let f=1;f<=8;f++)busy+=unionBusyMinutes(getIndexedEvents(dayKey,f),w[0],w[1]);}return {totalFieldHours:+(total/60).toFixed(2),occupiedFieldHours:+(busy/60).toFixed(2),availableFieldHours:+((total-busy)/60).toFixed(2)};}
 function summarizeUsage(events){let si=0,sm=0,other=0;for(const e of events){const h=Math.max(0,(e.end-e.start)/3600000);if(e.owner==='SI')si+=h;else if(e.owner==='SMGSL')sm+=h;else other+=h;}return {siFieldHours:+si.toFixed(2),smgslFieldHours:+sm.toFixed(2),otherFieldHours:+other.toFixed(2),currentTotalFieldHours:+(si+sm+other).toFixed(2)};}
+function calendarUsageSummary(events){
+ const byDate=new Map();for(const e of events){const list=byDate.get(e.dateKey);if(list)list.push(e);else byDate.set(e.dateKey,[e]);}
+ let total=0,occupied=0,si=0,sm=0,other=0;const unusedByField=Array.from({length:8},(_,i)=>({field:`Field ${i+1}`,fieldNumber:i+1,unusedFieldHours:0}));
+ for(const [dateKey,dayEvents] of byDate){
+  const dow=new Date(`${dateKey}T12:00:00Z`).getUTCDay(),hasOther=dayEvents.some(e=>e.owner==='OTHER');
+  // Saturdays are not general usable capacity. An all-field tournament takes
+  // precedence over recurring practices or league rows left on the website.
+  if(dow===6&&!hasOther)continue;
+  const active=hasOther?dayEvents.filter(e=>e.owner==='OTHER'):dayEvents;
+  const start=new Date(Math.min(...active.map(e=>e.start.getTime()))),end=new Date(Math.max(...active.map(e=>e.end.getTime()))),windowMinutes=(end-start)/60000;
+  total+=windowMinutes*8;
+  for(let field=1;field<=8;field++){
+   const fieldEvents=active.filter(e=>e.fieldNumber===field),fieldBusy=unionBusyMinutes(fieldEvents,start,end);
+   occupied+=fieldBusy;unusedByField[field-1].unusedFieldHours+=(windowMinutes-fieldBusy)/60;
+   si+=unionBusyMinutes(fieldEvents.filter(e=>e.owner==='SI'),start,end);
+   sm+=unionBusyMinutes(fieldEvents.filter(e=>e.owner==='SMGSL'),start,end);
+   other+=unionBusyMinutes(fieldEvents.filter(e=>e.owner==='OTHER'),start,end);
+  }
+ }
+ for(const row of unusedByField)row.unusedFieldHours=+row.unusedFieldHours.toFixed(2);
+ return {siFieldHours:+(si/60).toFixed(2),smgslFieldHours:+(sm/60).toFixed(2),otherFieldHours:+(other/60).toFixed(2),currentTotalFieldHours:+(occupied/60).toFixed(2),scheduledTotalFieldHours:+(occupied/60).toFixed(2),totalFieldHours:+(total/60).toFixed(2),occupiedFieldHours:+(occupied/60).toFixed(2),unusedFieldHours:+((total-occupied)/60).toFixed(2),unusedByField};
+}
 function eventOut(e){return {field:`Field ${e.fieldNumber}`,fieldNumber:e.fieldNumber,start:e.start,end:e.end,summary:e.summary,location:e.location,owner:e.owner,source:e.source,projected:false,durationMinutes:(e.end-e.start)/60000};}
 function getScheduledSummary(){
  if(SCHEDULED_CACHE)return SCHEDULED_CACHE;
  const EVENTS=getEvents(),usageStart=centralDate(2026,1,1),yearEnd=centralDate(2027,1,1),yearEvents=EVENTS.filter(e=>e.end>usageStart&&e.start<yearEnd);
- const scheduled=summarizeUsage(yearEvents),yearCapacity=capacitySummary(usageStart,yearEnd);
- scheduled.totalFieldHours=yearCapacity.totalFieldHours;
- scheduled.occupiedFieldHours=yearCapacity.occupiedFieldHours;
- scheduled.unusedFieldHours=yearCapacity.availableFieldHours;
- scheduled.scheduledTotalFieldHours=+(scheduled.siFieldHours+scheduled.smgslFieldHours+scheduled.otherFieldHours).toFixed(2);
+ const scheduled=calendarUsageSummary(yearEvents);
  SCHEDULED_CACHE=Object.freeze({...scheduled});
  return SCHEDULED_CACHE;
 }
@@ -96,10 +121,10 @@ function fieldData(){
   }
  }
  const si=used.filter(e=>e.owner==='SI').map(eventOut);
- const usedToDate=summarizeUsage(used);
+ const usedToDate=calendarUsageSummary(used);
  const scheduled=getScheduledSummary();
  const capacity=capacitySummary(today,horizon);
- return {fields:Array.from({length:8},(_,i)=>`Field ${i+1}`),slots,si,usage:{...usedToDate,...capacity,windowDays:WINDOW_DAYS,usageYear:2026,usageStart:USAGE_START,usageThrough:ymd(instantNow),scheduled,usedToDate},diagnostics:{source:'Spring 2026 schedule.xlsx + Fall 2026 schedule.xlsx',uniqueScheduleRecords:EVENTS.length,timeZone:TZ},rules:{timeZone:TZ,displayZone:'Central Time (CST/CDT)',normalPracticeMinutes:90,fieldCount:8,mondayAvailable:false,saturdayAvailable:false,tuesdayFridayOpen:'18:00',dailyClose:'21:00',sundayOpen:'09:00'}};
+ return {fields:Array.from({length:8},(_,i)=>`Field ${i+1}`),slots,si,usage:{...usedToDate,...capacity,windowDays:WINDOW_DAYS,usageYear:2026,usageStart:USAGE_START,usageThrough:ymd(instantNow),scheduled,usedToDate},diagnostics:{source:'Existing 2026 schedule through Aug. 31; SMGSL.net official calendar Sept. 1-Dec. 31',websiteRangeStart:WEBSITE_RANGE_START,websiteRangeEnd:'2026-12-31',websiteSnapshotFetchedAt:officialFall.fetchedAt,uniqueScheduleRecords:EVENTS.length,timeZone:TZ},rules:{timeZone:TZ,displayZone:'Central Time (CST/CDT)',normalPracticeMinutes:90,fieldCount:8,mondayAvailable:false,saturdayAvailable:false,tuesdayFridayOpen:'18:00',dailyClose:'21:00',sundayOpen:'09:00'}};
 }
 
 function lookup(date,time,field){
@@ -108,10 +133,11 @@ function lookup(date,time,field){
  const dayStart=centralDate(dm.y,dm.m,dm.d),dayEnd=addDays(dayStart,1),target=tm?centralDate(dm.y,dm.m,dm.d,tm.h,tm.min):null,dayKey=ymdParts(dm);
  let matches=fieldNum?[...getIndexedEvents(dayKey,fieldNum)]:EVENTS.filter(e=>e.dateKey===dayKey);
  matches=matches.filter(e=>e.start<dayEnd&&e.end>dayStart);if(target)matches=matches.filter(e=>e.start<=target&&e.end>target);matches.sort((a,b)=>a.fieldNumber-b.fieldNumber||a.start-b.start||a.summary.localeCompare(b.summary));
- const displayTime=target?LOOKUP_TIME_FORMATTER.format(target):'';return {date,time:time||'',displayTime,field:fieldNum||null,scope:tm?'time':'day',matches:matches.map(eventOut),source:'2026 spreadsheet schedule',timeZone:TZ};
+ const displayTime=target?LOOKUP_TIME_FORMATTER.format(target):'';return {date,time:time||'',displayTime,field:fieldNum||null,scope:tm?'time':'day',matches:matches.map(eventOut),source:date>=WEBSITE_RANGE_START&&date<WEBSITE_RANGE_END_EXCLUSIVE?'SMGSL.net official calendar':'preserved 2026 schedule',timeZone:TZ};
 }
 
 const originalCreateServer=http.createServer;
 http.createServer=function(listener){return originalCreateServer.call(http,async function(req,res){let u;try{u=new URL(req.url,'http://localhost');}catch{return listener(req,res);}if(u.pathname!=='/api/fields'&&u.pathname!=='/api/field-lookup')return listener(req,res);if(!authed(req)){res.writeHead(401,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});return res.end(JSON.stringify({error:'Session expired. Please sign in again.'}));}const started=Date.now();try{const result=u.pathname==='/api/fields'?fieldData():lookup(u.searchParams.get('date')||'',u.searchParams.get('time')||'',u.searchParams.get('field')||'');const body=JSON.stringify(result);res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Server-Timing':`schedule;dur=${Date.now()-started}`});return res.end(body);}catch(e){console.error('Schedule API error:',e);res.writeHead(500,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});return res.end(JSON.stringify({error:'Schedule data could not be calculated. Please refresh and try again.'}));}});};
 
-require('./server');
+if(process.env.SMGSL_DATA_ONLY==='1')module.exports={fieldData,lookup,getEvents,getScheduledSummary};
+else require('./server');

@@ -1,27 +1,5 @@
 const http=require('http');
 
-// Authoritative 2026 reporting values from the reconciled SMGSL master calendar.
-// Saturdays do not create general available/unused capacity. Website-listed
-// tournament use is counted as Other, including Saturday tournament hours.
-const ANNUAL={
-  siFieldHours:2484.50,
-  smgslFieldHours:2434.50,
-  otherFieldHours:672.00,
-  unusedFieldHours:3567.00,
-  totalFieldHours:9158.00,
-  scheduledTotalFieldHours:5591.00,
-  unusedByField:[
-    {field:'Field 1',fieldNumber:1,unusedFieldHours:264.25},
-    {field:'Field 2',fieldNumber:2,unusedFieldHours:456.25},
-    {field:'Field 3',fieldNumber:3,unusedFieldHours:443.75},
-    {field:'Field 4',fieldNumber:4,unusedFieldHours:606.25},
-    {field:'Field 5',fieldNumber:5,unusedFieldHours:682.00},
-    {field:'Field 6',fieldNumber:6,unusedFieldHours:532.00},
-    {field:'Field 7',fieldNumber:7,unusedFieldHours:180.25},
-    {field:'Field 8',fieldNumber:8,unusedFieldHours:402.25}
-  ]
-};
-
 // Reconciled planned-use snapshot through Aug. 25, 2026. Manual SI time
 // violations are intentionally kept separate and are added by the UI only to
 // actual Used-to-Date totals, not to the full-year scheduled totals.
@@ -40,14 +18,6 @@ function localYMD(v){
   const d=new Date(v);if(Number.isNaN(d.getTime()))return '';
   try{return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(d);}
   catch{return d.toISOString().slice(0,10);}
-}
-
-function applyAnnual(data){
-  if(!data||!data.usage)return;
-  const scheduled=data.usage.scheduled||{};
-  Object.assign(scheduled,ANNUAL);
-  scheduled.occupiedFieldHours=ANNUAL.scheduledTotalFieldHours;
-  data.usage.scheduled=scheduled;
 }
 
 function applyUsedToDate(data){
@@ -96,7 +66,6 @@ http.createServer=function(listener){return originalCreateServer.call(http,funct
     if(statusCode===200){
       try{
         const data=JSON.parse(raw);
-        applyAnnual(data);
         applyUsedToDate(data);
         applyFieldBlackouts(data);
         data.diagnostics={
@@ -104,9 +73,9 @@ http.createServer=function(listener){return originalCreateServer.call(http,funct
           reportingAuthority:'SMGSL reconciled 2026 master calendar / website when discrepancies arise',
           saturdayCapacityRule:'Saturdays excluded from unused capacity; website-listed tournament hours count as Other',
           fieldBlackoutRule:'Website-listed complex events are not offered as open practice inventory',
-          annualAvailableFieldHours:ANNUAL.totalFieldHours,
-          annualScheduledFieldHours:ANNUAL.scheduledTotalFieldHours,
-          annualOtherFieldHours:ANNUAL.otherFieldHours
+          annualAvailableFieldHours:data.usage&&data.usage.scheduled?data.usage.scheduled.totalFieldHours:0,
+          annualScheduledFieldHours:data.usage&&data.usage.scheduled?data.usage.scheduled.scheduledTotalFieldHours:0,
+          annualOtherFieldHours:data.usage&&data.usage.scheduled?data.usage.scheduled.otherFieldHours:0
         };
         const body=Buffer.from(JSON.stringify(data));
         headers={...headers,'Content-Type':'application/json; charset=utf-8','Content-Length':String(body.length),'Cache-Control':'no-store'};

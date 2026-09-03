@@ -68,6 +68,6 @@
 // Load the complete rulebook index after the existing quick-answer layers.
 (function(){
   let loaded=0;
-  const ready=()=>{if(++loaded!==3)return;const search=document.createElement('script');search.src='/rule-search-v24.js?v=24';document.body.appendChild(search);};
-  [1,2,3].forEach(part=>{const index=document.createElement('script');index.src=`/rulebook-index-v24-${part}.js?v=24`;index.onload=ready;document.body.appendChild(index);});
+  const ready=()=>{if(++loaded!==3)return;const search=document.createElement('script');search.src='/rule-search-v24.js?v=25';document.body.appendChild(search);};
+  [1,2,3].forEach(part=>{const index=document.createElement('script');index.src=`/rulebook-index-v24-${part}.js?v=25`;index.onload=ready;document.body.appendChild(index);});
 })();

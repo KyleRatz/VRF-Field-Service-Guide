@@ -8,6 +8,8 @@
 
   // pdfPage is the physical PDF page used by #page=. printedPage is the page number printed in the rulebook.
   const GENERAL={
+    'Team Activity Limit — Spring / General Rule':{pdfPage:17,printedPage:11,ref:'Article V, Section 3.B'},
+    'Team Activity Limit — Fall':{pdfPage:32,printedPage:26,ref:'Article XIV — adaptation of Article V, Section 3.B'},
     'Minimum Playing Time':{pdfPage:12,printedPage:6,ref:'Article II, Section 9'},
     'Minimum Playing Time — Corrective Requirement':{pdfPage:12,printedPage:6,ref:'Article II, Section 9'},
     'Free Substitution / Batting':{pdfPage:13,printedPage:7,ref:'Article II, Section 10'},

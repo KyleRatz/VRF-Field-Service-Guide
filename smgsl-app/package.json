@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "node seed-si-adjustments.js && node -r ./fast-intl.js -r ./calendar-2026-corrections.js -r ./mx-owner-fix.js shared-entry.js"
+    "start": "node seed-si-adjustments.js && node -r ./fast-intl.js -r ./calendar-2026-corrections.js -r ./mx-owner-fix.js shared-entry.js",
+    "sync:calendar": "node scripts/sync-official-calendar.js"
   },
   "dependencies": {
     "pg": "^8.13.1"

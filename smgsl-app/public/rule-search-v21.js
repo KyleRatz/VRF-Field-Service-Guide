@@ -6,6 +6,20 @@
   const USATX=typeof USATX_SOURCE!=='undefined'?USATX_SOURCE:'USA Softball of Texas/New Mexico';
   const GENERAL=[
     {
+      div:'all',source:SMGSL,topic:'Team Activity Limit — Spring / General Rule',
+      q:'How many team activities are allowed each week?',
+      text:'Each team is allowed four (4) team activities per week, Monday through Sunday. An activity includes a practice or game. A manager found guilty of breaking the limit is suspended from team activities for the next week. Tournament teams and make-up games are excepted. For Fall, Article XIV changes the limit to three (3) activities per week, Sunday through Saturday.',
+      keys:'4 four weekly activity activities team activity team activities activity limit event events weekly event limit practice practices game games per week monday sunday softball activities maximum max allowed',
+      href:typeof RULEBOOK!=='undefined'?`${RULEBOOK}#page=17`:''
+    },
+    {
+      div:'all',source:SMGSL,topic:'Team Activity Limit — Fall',
+      q:'How many team activities are allowed each week during Fall?',
+      text:'Article XIV adapts Article V, Section 3.B for Fall: each team is allowed three (3) team activities per week, Sunday through Saturday.',
+      keys:'3 three fall weekly activity activities team activity team activities activity limit event events practice practices game games per week sunday saturday softball activities maximum max allowed',
+      href:typeof RULEBOOK!=='undefined'?`${RULEBOOK}#page=32`:''
+    },
+    {
       div:'all',source:SMGSL,topic:'Minimum Playing Time',
       q:'What is the minimum playing time for each player?',
       text:'Each girl must play at least two full innings (6 outs) each game, provided she has attended practices and otherwise qualifies under League rules. If a girl does not start one game, she must start the next. A minimum-play violation carries the corrective and game-result consequences stated in Article II, Section 9.',
@@ -43,11 +57,12 @@
     'pitcher innings':['pitching limit','pitcher limit','innings limit'],
     'game time':['time limit','game length','no new inning'],
     'run limit':['runs per inning','5 runs','five runs'],
-    'courtesy runner':['substitute runner','runner for pitcher','runner for catcher']
+    'courtesy runner':['substitute runner','runner for pitcher','runner for catcher'],
+    'team activity limit':['weekly activities','weekly activity','activities per week','activity per week','team activities','team activity','weekly events','events per week','practice and game limit','practice game limit']
   };
   const STOP=new Set(['a','an','and','are','as','at','be','by','can','do','does','for','from','how','if','in','is','it','may','of','on','or','the','to','what','when','where','who','with']);
   function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));}
-  function norm(v){return String(v||'').toLowerCase().replace(/10\s*&?\s*under|10u/g,'10u').replace(/12\s*&?\s*under|12u/g,'12u').replace(/8\s*&?\s*under|8u/g,'8u').replace(/6\s*&?\s*under|6u/g,'6u').replace(/mixed division|mixed/g,'mx').replace(/3rd/g,'third').replace(/innings?/g,'inning').replace(/players?/g,'player').replace(/pitching/g,'pitch').replace(/stealing/g,'steal').replace(/walks/g,'walk').replace(/runs/g,'run').replace(/[^a-z0-9]+/g,' ').trim();}
+  function norm(v){return String(v||'').toLowerCase().replace(/10\s*&?\s*under|10u/g,'10u').replace(/12\s*&?\s*under|12u/g,'12u').replace(/8\s*&?\s*under|8u/g,'8u').replace(/6\s*&?\s*under|6u/g,'6u').replace(/mixed division|mixed/g,'mx').replace(/3rd/g,'third').replace(/innings?/g,'inning').replace(/players?/g,'player').replace(/activities?/g,'activity').replace(/events?/g,'event').replace(/weekly/g,'week').replace(/practices?/g,'practice').replace(/games?/g,'game').replace(/pitching/g,'pitch').replace(/stealing/g,'steal').replace(/walks/g,'walk').replace(/runs/g,'run').replace(/[^a-z0-9]+/g,' ').trim();}
   function concept(q){const raw=norm(q);for(const [canon,terms] of Object.entries(ALIASES)){if([canon,...terms].map(norm).some(t=>raw===t||raw.includes(t)))return norm(canon);}return raw;}
   function rows(){
     const base=(window.SMGSLRuleSearchV20&&typeof window.SMGSLRuleSearchV20.collect==='function')?window.SMGSLRuleSearchV20.collect():[];
@@ -62,10 +77,12 @@
     if(topic.includes(c))s+=90;
     if(question.includes(c))s+=70;
     if(keys.includes(c))s+=60;
-    const toks=raw.split(/\s+/).filter(t=>t.length>1&&!STOP.has(t));
+    const toks=raw.split(/\s+/).filter(t=>(t.length>1||/^\d+$/.test(t))&&!STOP.has(t));
     const matched=toks.filter(t=>hay.split(/\s+/).includes(t)).length;
     if(toks.length&&matched===toks.length)s+=50+matched*8;
     else if(matched)s+=matched*6;
+    if(topic.includes('team activity limit fall'))s+=raw.includes('fall')?80:-10;
+    if(topic.includes('team activity limit spring')&&!raw.includes('fall'))s+=25;
     if(r.source===SMGSL)s+=8;
     return s;
   }
