@@ -1,5 +1,9 @@
 // Adds field, season, practice day, time, and duration to each SI individual-team usage card.
 (function(){
+  function canonicalSITeam(v){
+    const name=typeof normalizedSITeam==='function'?normalizedSITeam(v):siTeamName(v);
+    return String(name||'Unassigned SI').trim().toUpperCase();
+  }
   function siWeekday(v){
     const d=typeof safeFieldDate==='function'?safeFieldDate(v):new Date(v);
     if(!d||Number.isNaN(d.getTime()))return 'Unknown day';
@@ -31,9 +35,9 @@
   }
   function siTeamUsageWithSchedule(rows){
     const teams=new Map();
-    rows.forEach(x=>{const team=siTeamName(x&&x.summary);const current=teams.get(team)||{team,hours:0,blocks:0,patterns:new Map()};current.hours+=siEventHours(x);current.blocks+=1;const p=practicePattern(x);if(!current.patterns.has(p.key))current.patterns.set(p.key,p);teams.set(team,current);});
+    rows.forEach(x=>{const team=canonicalSITeam(x&&x.summary);const current=teams.get(team)||{team,hours:0,blocks:0,patterns:new Map()};current.hours+=siEventHours(x);current.blocks+=1;const p=practicePattern(x);if(!current.patterns.has(p.key))current.patterns.set(p.key,p);teams.set(team,current);});
     const adjustments=currentSIAdjustments();
-    adjustments.forEach(a=>{const team=normalizedSITeam(a.team)||'Unassigned SI';const current=teams.get(team)||{team,hours:0,blocks:0,patterns:new Map()};current.adjustmentHours=(current.adjustmentHours||0)+siAdjustmentHours(a);teams.set(team,current);});
+    adjustments.forEach(a=>{const team=canonicalSITeam(a.team);const current=teams.get(team)||{team,hours:0,blocks:0,patterns:new Map()};current.adjustmentHours=(current.adjustmentHours||0)+siAdjustmentHours(a);teams.set(team,current);});
     const sorted=[...teams.values()].sort((a,b)=>((b.hours+(b.adjustmentHours||0))-(a.hours+(a.adjustmentHours||0)))||a.team.localeCompare(b.team));
     const total=sorted.reduce((sum,x)=>sum+x.hours+(x.adjustmentHours||0),0);
     const cards=sorted.map(x=>{const adj=x.adjustmentHours||0,actual=x.hours+adj;return `<div class="rule-card si-team-card"><div class="rule-topic">${escSI(x.team)}</div><div class="rule-question">${actual.toFixed(1)} field-hours</div><div class="small">Calendar usage: ${x.hours.toFixed(1)} hrs • Adjustments: ${adj>=0?'+':''}${adj.toFixed(1)} hrs • ${x.blocks} field-use record${x.blocks===1?'':'s'}</div>${scheduleHtml([...x.patterns.values()])}<button class="btn secondary si-adjust-btn" data-team="${escSI(x.team)}">Document / Adjust Usage</button></div>`;}).join('');
@@ -41,3 +45,4 @@
   }
   siTeamUsage=siTeamUsageWithSchedule;
 })();
+
