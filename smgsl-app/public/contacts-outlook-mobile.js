@@ -26,7 +26,7 @@
     const selectedDivisions=e.target.closest('#messageSelectedDivisions');
     if(selectedDivisions){
       e.preventDefault();e.stopImmediatePropagation();
-      const divisions=[...document.querySelectorAll('[data-division-email][aria-pressed="true"]')].map(btn=>btn.dataset.divisionEmail);
+      const divisions=(selectedDivisions.dataset.divisions||'').split(',').filter(Boolean);
       const cards=[...document.querySelectorAll('.coach-card')].filter(card=>divisions.includes(card.dataset.division));
       const emails=cards.map(emailFromCard);
       if(!emails.length)return;
