@@ -5,14 +5,14 @@
     return a?a.getAttribute('href').replace(/^mailto:/i,'').trim():'';
   }
   function uniq(values){return [...new Set(values.filter(Boolean))];}
-  function outlookAppUrl(emails,subject='',bcc=true){
+  function outlookAppUrl(emails,subject='',bcc=false){
     const p=[];
     const key=bcc?'bcc':'to';
     p.push(`${key}=${encodeURIComponent(uniq(emails).join(','))}`);
     if(subject)p.push(`subject=${encodeURIComponent(subject)}`);
     return `ms-outlook://compose?${p.join('&')}`;
   }
-  function openOutlook(emails,subject,bcc=true){
+  function openOutlook(emails,subject,bcc=false){
     window.location.href=outlookAppUrl(emails,subject,bcc);
   }
   document.addEventListener('click',function(e){
@@ -21,7 +21,16 @@
     if(all){
       e.preventDefault();e.stopImmediatePropagation();
       const emails=[...document.querySelectorAll('.coach-card .coach-links a[href^="mailto:"]')].map(a=>a.getAttribute('href').replace(/^mailto:/i,'').trim());
-      openOutlook(emails,'SMGSL 2026 Fall Coaches',true);return;
+      openOutlook(emails,'SMGSL 2026 Fall Coaches',false);return;
+    }
+    const selectedDivisions=e.target.closest('#messageSelectedDivisions');
+    if(selectedDivisions){
+      e.preventDefault();e.stopImmediatePropagation();
+      const divisions=[...document.querySelectorAll('[data-division-email][aria-pressed="true"]')].map(btn=>btn.dataset.divisionEmail);
+      const cards=[...document.querySelectorAll('.coach-card')].filter(card=>divisions.includes(card.dataset.division));
+      const emails=cards.map(emailFromCard);
+      if(!emails.length)return;
+      openOutlook(emails,`SMGSL ${divisions.join(', ')} Coaches`,false);return;
     }
     const selected=e.target.closest('#messageSelectedCoaches');
     if(selected){
@@ -30,7 +39,7 @@
       const emails=cards.map(emailFromCard);
       const count=document.querySelector('#selectedCoachCount');
       if(!emails.length){if(count)count.textContent='Select at least one coach';return;}
-      openOutlook(emails,'SMGSL Coaches',true);return;
+      openOutlook(emails,'SMGSL Coaches',false);return;
     }
     const division=e.target.closest('.contact-division-head .btn.primary');
     if(division){
@@ -38,7 +47,7 @@
       const section=division.closest('.contact-division');
       const emails=[...section.querySelectorAll('.coach-links a[href^="mailto:"]')].map(a=>a.getAttribute('href').replace(/^mailto:/i,'').trim());
       const label=section.querySelector('h3')?.textContent?.trim()||'Division';
-      openOutlook(emails,`SMGSL ${label} Coaches`,true);return;
+      openOutlook(emails,`SMGSL ${label} Coaches`,false);return;
     }
     const individual=e.target.closest('.coach-actions a[target="_blank"]');
     if(individual){
