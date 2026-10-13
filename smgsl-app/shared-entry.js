@@ -54,6 +54,17 @@ if(isViews){
  if(!pool)return json(res,503,{error:'View storage unavailable'});
  try{
   await pool.query('CREATE TABLE IF NOT EXISTS eos_division_views (division TEXT PRIMARY KEY, views BIGINT NOT NULL DEFAULT 0)');
+  // One-time approved baseline: set each division to 30, then count normally.
+  // A database migration marker prevents subsequent requests/redeploys from resetting totals.
+  await pool.query('CREATE TABLE IF NOT EXISTS eos_counter_migrations (name TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW())');
+  await pool.query(`WITH applied AS (
+    INSERT INTO eos_counter_migrations(name) VALUES ('baseline_30_20261013')
+    ON CONFLICT (name) DO NOTHING RETURNING name
+  )
+  INSERT INTO eos_division_views(division, views)
+  SELECT division, 30 FROM (VALUES ('6U'),('8U'),('10U'),('12U'),('MX')) AS d(division)
+  WHERE EXISTS (SELECT 1 FROM applied)
+  ON CONFLICT (division) DO UPDATE SET views=30`);
   const divisions=['6U','8U','10U','12U','MX'];
   if(req.method==='GET'){
    const q=await pool.query('SELECT division,views FROM eos_division_views');
