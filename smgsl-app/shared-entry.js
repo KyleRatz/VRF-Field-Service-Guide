@@ -42,7 +42,35 @@ function siRowOut(r){return {id:String(r.id),team:r.team,date:String(r.event_dat
 function parkingRowOut(r){return {id:String(r.id),observedAt:r.observed_at,location:r.location||'',violationType:r.violation_type||'',licensePlate:r.license_plate||'',plateState:r.plate_state||'',vehicleMake:r.vehicle_make||'',vehicleModel:r.vehicle_model||'',vehicleColor:r.vehicle_color||'',notes:r.notes||'',documentedBy:r.documented_by||'',disposition:r.disposition||'Documented',created:r.created_at,updated:r.updated_at,hasPhoto:!!r.has_photo,photoUrl:r.has_photo?`/api/parking-violations/${r.id}/photo`:''};}
 
 const originalCreateServer=http.createServer;
-http.createServer=function(listener){return originalCreateServer.call(http,async function(req,res){let u;try{u=new URL(req.url,'http://localhost');}catch{return listener(req,res);}const isSI=u.pathname.startsWith('/api/si-adjustments'),isParking=u.pathname.startsWith('/api/parking-violations');if(!isSI&&!isParking){if(u.pathname==='/'||/\.(?:html|js|css|webmanifest)$/i.test(u.pathname)){res.setHeader('Cache-Control','no-store, no-cache, must-revalidate, max-age=0');res.setHeader('Pragma','no-cache');res.setHeader('Expires','0');}return listener(req,res);}if(!authed(req)){res.writeHead(302,{'Location':'/login'});return res.end('');}
+http.createServer=function(listener){return originalCreateServer.call(http,async function(req,res){let u;try{u=new URL(req.url,'http://localhost');}catch{return listener(req,res);}const isViews=u.pathname==='/api/eos-views';
+if(isViews){
+ const origin='https://smgsl-eos-seeding-race.onrender.com';
+ res.setHeader('Access-Control-Allow-Origin',origin);
+ res.setHeader('Vary','Origin');
+ res.setHeader('Access-Control-Allow-Methods','GET, POST, OPTIONS');
+ res.setHeader('Access-Control-Allow-Headers','Content-Type');
+ if(req.method==='OPTIONS'){res.writeHead(204);return res.end();}
+ if(req.headers.origin && req.headers.origin!==origin)return json(res,403,{error:'Origin not allowed'});
+ if(!pool)return json(res,503,{error:'View storage unavailable'});
+ try{
+  await pool.query('CREATE TABLE IF NOT EXISTS eos_division_views (division TEXT PRIMARY KEY, views BIGINT NOT NULL DEFAULT 0)');
+  const divisions=['6U','8U','10U','12U','MX'];
+  if(req.method==='GET'){
+   const q=await pool.query('SELECT division,views FROM eos_division_views');
+   const counts=Object.fromEntries(divisions.map(d=>[d,0]));
+   for(const row of q.rows)if(Object.hasOwn(counts,row.division))counts[row.division]=Number(row.views);
+   return json(res,200,{counts});
+  }
+  if(req.method==='POST'){
+   const body=JSON.parse(await readBody(req,2000)||'{}');
+   if(!divisions.includes(body.division))return json(res,400,{error:'Invalid division'});
+   const q=await pool.query('INSERT INTO eos_division_views(division,views) VALUES($1,1) ON CONFLICT(division) DO UPDATE SET views=eos_division_views.views+1 RETURNING views',[body.division]);
+   return json(res,200,{division:body.division,views:Number(q.rows[0].views)});
+  }
+  return json(res,405,{error:'Method not allowed'});
+ }catch(e){console.error('EOS views:',e.message);return json(res,503,{error:'Counter temporarily unavailable'});}
+}
+const isSI=u.pathname.startsWith('/api/si-adjustments'),isParking=u.pathname.startsWith('/api/parking-violations');if(!isSI&&!isParking){if(u.pathname==='/'||/\.(?:html|js|css|webmanifest)$/i.test(u.pathname)){res.setHeader('Cache-Control','no-store, no-cache, must-revalidate, max-age=0');res.setHeader('Pragma','no-cache');res.setHeader('Expires','0');}return listener(req,res);}if(!authed(req)){res.writeHead(302,{'Location':'/login'});return res.end('');}
  try{
   await ensureTables();
   if(isSI){
