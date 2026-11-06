@@ -136,8 +136,42 @@ function lookup(date,time,field){
  const displayTime=target?LOOKUP_TIME_FORMATTER.format(target):'';return {date,time:time||'',displayTime,field:fieldNum||null,scope:tm?'time':'day',matches:matches.map(eventOut),source:date>=WEBSITE_RANGE_START&&date<WEBSITE_RANGE_END_EXCLUSIVE?'SMGSL.net official calendar':'preserved 2026 schedule',timeZone:TZ};
 }
 
+
+function utilizationData(year){
+ if(!Number.isInteger(year)||year<2026||year>2100)throw new Error('Invalid year');
+ const now=new Date(),today=parts(now),endYear=centralDate(year+1,1,1);
+ const through=year===today.y?now:year<today.y?endYear:centralDate(year,1,1);
+ const from=centralDate(year,1,1),end=through<endYear?through:endYear;
+ const weeks=new Map(),months=new Map();
+ const fields=Array.from({length:8},(_,i)=>({fieldNumber:i+1,availableMinutes:0,occupiedMinutes:0,owners:{SMGSL:0,SI:0,OTHER:0},weeks:[]}));
+ const events=getEvents().filter(e=>e.start<end&&e.end>from&&e.fieldNumber>=1&&e.fieldNumber<=8);
+ const byDay=new Map();
+ for(const e of events){const k=e.dateKey+'|'+e.fieldNumber;if(!byDay.has(k))byDay.set(k,[]);byDay.get(k).push(e);}
+ function union(ints){ints.sort((a,b)=>a[0]-b[0]);let sum=0,last=-Infinity;for(const [a,b] of ints){sum+=Math.max(0,b-Math.max(a,last));last=Math.max(last,b);}return sum;}
+ for(let day=from;day<end;day=addDays(day,1)){
+  const p=parts(day),dow=new Date(Date.UTC(p.y,p.m-1,p.d)).getUTCDay();
+  const open=dow===0?8*60:dow===6?8*60:17*60,close=21*60+30;
+  const start=centralDate(p.y,p.m,p.d,Math.floor(open/60),open%60),finish=centralDate(p.y,p.m,p.d,Math.floor(close/60),close%60);
+  const a=Math.max(start.getTime(),from.getTime()),b=Math.min(finish.getTime(),end.getTime());
+  if(b<=a)continue;
+  const dateKey=ymd(day),month=dateKey.slice(0,7);
+  const weekDate=new Date(Date.UTC(p.y,p.m-1,p.d));weekDate.setUTCDate(weekDate.getUTCDate()-((weekDate.getUTCDay()+6)%7));
+  const week=weekDate.toISOString().slice(0,10);
+  for(const f of fields){
+   const es=byDay.get(dateKey+'|'+f.fieldNumber)||[];
+   const intervals=es.map(e=>[Math.max(a,e.start.getTime()),Math.min(b,e.end.getTime())]).filter(v=>v[1]>v[0]);
+   const available=(b-a)/60000,occupied=union(intervals)/60000;
+   f.availableMinutes+=available;f.occupiedMinutes+=occupied;
+   for(const owner of ['SMGSL','SI','OTHER'])f.owners[owner]+=union(es.filter(e=>e.owner===owner).map(e=>[Math.max(a,e.start.getTime()),Math.min(b,e.end.getTime())]).filter(v=>v[1]>v[0]))/60000;
+   for(const [map,key] of [[weeks,week],[months,month]]){if(!map.has(key))map.set(key,Array.from({length:8},()=>({available:0,used:0})));const x=map.get(key)[f.fieldNumber-1];x.available+=available;x.used+=occupied;}
+  }
+ }
+ const round=x=>Math.round(x*100)/100,format=x=>({availableHours:round(x.available/60),usedHours:round(x.used/60),percentage:x.available?round(100*x.used/x.available):0});
+ return {year,from:year+'-01-01',through:ymd(end),updatedAt:now.toISOString(),source:'2026 preserved schedule and official SMGSL.net snapshot; later years require calendar import',basis:'Monday-Friday 17:00-21:30; Saturday-Sunday 08:00-21:30 America/Chicago',fields:fields.map(f=>({...format({available:f.availableMinutes,used:f.occupiedMinutes}),fieldNumber:f.fieldNumber,breakdown:Object.fromEntries(Object.entries(f.owners).map(([k,v])=>[k,round(v/60)]))})),weeks:[...weeks].sort((a,b)=>a[0].localeCompare(b[0])).map(([start,v])=>({start,fields:v.map((x,i)=>({fieldNumber:i+1,...format(x)}))})),months:[...months].sort((a,b)=>a[0].localeCompare(b[0])).map(([month,v])=>({month,fields:v.map((x,i)=>({fieldNumber:i+1,...format(x)}))}))};
+}
+
 const originalCreateServer=http.createServer;
-http.createServer=function(listener){return originalCreateServer.call(http,async function(req,res){let u;try{u=new URL(req.url,'http://localhost');}catch{return listener(req,res);}if(u.pathname!=='/api/fields'&&u.pathname!=='/api/field-lookup')return listener(req,res);if(!authed(req)){res.writeHead(401,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});return res.end(JSON.stringify({error:'Session expired. Please sign in again.'}));}const started=Date.now();try{const result=u.pathname==='/api/fields'?fieldData():lookup(u.searchParams.get('date')||'',u.searchParams.get('time')||'',u.searchParams.get('field')||'');const body=JSON.stringify(result);res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Server-Timing':`schedule;dur=${Date.now()-started}`});return res.end(body);}catch(e){console.error('Schedule API error:',e);res.writeHead(500,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});return res.end(JSON.stringify({error:'Schedule data could not be calculated. Please refresh and try again.'}));}});};
+http.createServer=function(listener){return originalCreateServer.call(http,async function(req,res){let u;try{u=new URL(req.url,'http://localhost');}catch{return listener(req,res);}if(u.pathname!=='/api/fields'&&u.pathname!=='/api/field-lookup'&&u.pathname!=='/api/field-utilization')return listener(req,res);if(!authed(req)){res.writeHead(401,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});return res.end(JSON.stringify({error:'Session expired. Please sign in again.'}));}const started=Date.now();try{const result=u.pathname==='/api/field-utilization'?utilizationData(Number(u.searchParams.get('year')||new Date().getFullYear())):u.pathname==='/api/fields'?fieldData():lookup(u.searchParams.get('date')||'',u.searchParams.get('time')||'',u.searchParams.get('field')||'');const body=JSON.stringify(result);res.writeHead(200,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','Server-Timing':`schedule;dur=${Date.now()-started}`});return res.end(body);}catch(e){console.error('Schedule API error:',e);res.writeHead(500,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});return res.end(JSON.stringify({error:'Schedule data could not be calculated. Please refresh and try again.'}));}});};
 
 if(process.env.SMGSL_DATA_ONLY==='1')module.exports={fieldData,lookup,getEvents,getScheduledSummary};
 else require('./server');
